@@ -2,165 +2,153 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>人生ゲーム 拡張版</title>
+<title>人生ゲーム 200マス</title>
 
 <style>
-  body { font-family: sans-serif; text-align: center; background: #eef; }
-  #map { display: flex; flex-wrap: wrap; width: 420px; margin: 20px auto; }
-  .cell {
-    width: 60px;
-    height: 60px;
-    border: 2px solid #333;
-    margin: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    position: relative;
-    font-size: 12px;
+  body { font-family: sans-serif; background:#eef; text-align:center; }
+  #map {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    gap: 2px;
+    max-width: 800px;
+    margin: 20px auto;
   }
-  .p1 { background: #ffcccc; }
-  .p2 { background: #ccddff; }
-  .bad { background: #ffd6d6; }
+  .cell {
+    border: 1px solid #333;
+    background: white;
+    font-size: 10px;
+    padding: 4px;
+    height: 30px;
+  }
+  .p1 { background:#ffcccc; }
+  .p2 { background:#ccddff; }
+  .bad { background:#ffd6d6; }
 </style>
 </head>
 
 <body>
 
-<h1>🎲 人生ゲーム 拡張版</h1>
+<h1>🎲 人生ゲーム（200マス）</h1>
 
-<p>現在のプレイヤー：<strong id="currentPlayer">1</strong></p>
+<p>現在プレイヤー：<b id="turn">1</b></p>
+<p>🎲 サイコロ：<span id="dice">-</span></p>
+
+<button onclick="startDice()">🎲 転がす</button>
+<button onclick="stopDice()">✋ ストップ</button>
+
+<p id="status"></p>
 
 <p>
-👤1 💰<span id="money1">100</span>万 /
-💼<span id="job1">未定</span> /
-🏠<span id="house1">なし</span> /
-🚗<span id="car1">なし</span>
+👤1 💰<span id="m1">100</span>万 |
+💼<span id="j1">未定</span> |
+🏠<span id="h1">なし</span> |
+🚗<span id="c1">なし</span>
 </p>
 
 <p>
-👤2 💰<span id="money2">100</span>万 /
-💼<span id="job2">未定</span> /
-🏠<span id="house2">なし</span> /
-🚗<span id="car2">なし</span>
+👤2 💰<span id="m2">100</span>万 |
+💼<span id="j2">未定</span> |
+🏠<span id="h2">なし</span> |
+🚗<span id="c2">なし</span>
 </p>
 
 <div id="map"></div>
-<button onclick="rollDice()">サイコロを振る</button>
-<div id="log"></div>
 
 <script>
-const goal = 20;
+const GOAL = 200;
+let diceInterval = null;
+let diceValue = 1;
+
 const jobs = [
-  { name: "フリーター", salary: 10 },
-  { name: "エンジニア", salary: 30 },
-  { name: "医者", salary: 50 }
+  {name:"フリーター", base:10},
+  {name:"エンジニア", base:30},
+  {name:"医者", base:50}
 ];
 
-let players = [
-  { pos: 0, money: 100, job: null, rank: 1, house: false, car: false },
-  { pos: 0, money: 100, job: null, rank: 1, house: false, car: false }
+const players = [
+  {pos:0,money:100,job:null,rank:1,house:false,car:false},
+  {pos:0,money:100,job:null,rank:1,house:false,car:false}
 ];
 
 let turn = 0;
 
 // マップ生成
 const map = document.getElementById("map");
-for (let i = 0; i <= goal; i++) {
-  const cell = document.createElement("div");
-  cell.className = "cell";
-  cell.id = "cell" + i;
-  cell.textContent = i;
-  if ([6, 14, 18].includes(i)) cell.classList.add("bad");
-  map.appendChild(cell);
+for(let i=1;i<=GOAL;i++){
+  const c=document.createElement("div");
+  c.className="cell";
+  c.id="cell"+i;
+  c.textContent=i;
+  if(i%17===0) c.classList.add("bad");
+  map.appendChild(c);
 }
 
-function rollDice() {
+function startDice(){
+  if(diceInterval) return;
+  diceInterval = setInterval(()=>{
+    diceValue = Math.floor(Math.random()*6)+1;
+    document.getElementById("dice").textContent=diceValue;
+  },80);
+}
+
+function stopDice(){
+  if(!diceInterval) return;
+  clearInterval(diceInterval);
+  diceInterval=null;
+  movePlayer(diceValue);
+}
+
+function movePlayer(d){
   const p = players[turn];
-  if (p.pos >= goal) return;
+  p.pos += d;
+  if(p.pos>GOAL) p.pos=GOAL;
 
-  const dice = Math.floor(Math.random() * 6) + 1;
-  p.pos += dice;
-  if (p.pos > goal) p.pos = goal;
+  let log = `🎲 ${d}マス進んだ`;
 
-  let log = `🎲 ${dice}マス進んだ！`;
-
-  // 職業決定
-  if (p.pos === 3 && !p.job) {
-    p.job = jobs[Math.floor(Math.random() * jobs.length)];
-    log += `<br>💼 職業：${p.job.name}`;
+  // 職業
+  if(p.pos===10 && !p.job){
+    p.job = jobs[Math.floor(Math.random()*jobs.length)];
+    log+=` / 💼${p.job.name}`;
   }
 
-  // 車購入
-  if (p.pos === 5 && !p.car && p.money >= 20) {
-    p.money -= 20;
-    p.car = true;
-    log += "<br>🚗 車を購入！ -20万";
+  // 車
+  if(p.pos===30 && !p.car && p.money>=30){
+    p.money-=30; p.car=true;
+    log+=" / 🚗車購入";
   }
 
-  // 家購入
-  if (p.pos === 10 && !p.house && p.money >= 50) {
-    p.money -= 50;
-    p.house = true;
-    log += "<br>🏠 家を購入！ -50万";
+  // 家
+  if(p.pos===80 && !p.house && p.money>=80){
+    p.money-=80; p.house=true;
+    log+=" / 🏠家購入";
   }
 
-  // 職業ランクアップ
-  if (p.pos === 15 && p.job) {
+  // 昇進
+  if(p.pos%50===0 && p.job){
     p.rank++;
-    log += "<br>📈 昇進！給料アップ";
+    log+=" / 📈昇進";
   }
 
   // 給料
-  if (p.pos % 5 === 0 && p.job) {
-    let salary = p.job.salary * p.rank;
-    if (p.car) salary += 10;
-    p.money += salary;
-    log += `<br>💰 給料 +${salary}万`;
+  if(p.pos%20===0 && p.job){
+    let pay = p.job.base*p.rank + (p.car?10:0);
+    p.money+=pay;
+    log+=` / 💰給料+${pay}`;
   }
 
   // ハズレマス
-  if ([6, 14, 18].includes(p.pos)) {
-    const bad = Math.random();
-    if (bad < 0.5) {
-      p.money -= 20;
-      log += "<br>💥 事故！ -20万";
-    } else {
-      p.job = null;
-      p.rank = 1;
-      log += "<br>😱 失業… 職業リセット";
+  if(p.pos%17===0){
+    if(Math.random()<0.5){
+      p.money-=30;
+      log+=" / 💥事故-30";
+    }else{
+      p.job=null; p.rank=1;
+      log+=" / 😱失業";
     }
   }
 
-  if (p.pos === goal) log += "<br><strong>🏁 ゴール！</strong>";
-
+  document.getElementById("status").textContent=log;
   updateUI();
-  document.getElementById("log").innerHTML = log;
 
-  turn = (turn + 1) % 2;
-  document.getElementById("currentPlayer").textContent = turn + 1;
-}
-
-function updateUI() {
-  for (let i = 0; i <= goal; i++) {
-    document.getElementById("cell" + i).className = "cell";
-    if ([6,14,18].includes(i)) document.getElementById("cell"+i).classList.add("bad");
-  }
-
-  players.forEach((p, i) => {
-    document.getElementById("cell" + p.pos).classList.add(i === 0 ? "p1" : "p2");
-  });
-
-  ["1","2"].forEach((n,i)=>{
-    document.getElementById("money"+n).textContent = players[i].money;
-    document.getElementById("job"+n).textContent = players[i].job ? players[i].job.name+" Lv"+players[i].rank : "未定";
-    document.getElementById("house"+n).textContent = players[i].house ? "あり" : "なし";
-    document.getElementById("car"+n).textContent = players[i].car ? "あり" : "なし";
-  });
-}
-
-updateUI();
-</script>
-
-</body>
-</html>
+  if(p.pos===GOAL){
+    document.getElementById("status").textContent+=" 🏁ゴール！";
